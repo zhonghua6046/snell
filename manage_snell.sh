@@ -140,7 +140,7 @@ EOF
     systemctl enable snell
     systemctl start snell
 
-    echo -e "\n${Green_background_prefix} Snell Server 安装并启动成功! ${Font_color_suffix}\n"
+    echo -e "\n${Green_font_prefix}Snell Server 安装并启动成功!${Font_color_suffix}\n"
     view_config_info
 }
 
@@ -206,12 +206,19 @@ modify_config(){
         new_port="${new_port_input}"
     fi
     
-    read -p "请输入新的PSK [留空则重新生成强密码]: " new_psk
-    if [ -z "${new_psk}" ]; then
-        new_psk=$(generate_strong_psk)
-        echo -e "${Info} 已为您生成新的随机强密码。"
+    read -p "请输入新的PSK [当前: ${current_psk}] (直接回车进行下一步): " new_psk_input
+    if [ -z "${new_psk_input}" ]; then
+        read -p "您希望保留当前PSK还是生成新PSK? [1.保留(默认) 2.生成新的]: " psk_choice
+        if [[ "$psk_choice" == "2" ]]; then
+            new_psk=$(generate_strong_psk)
+            echo -e "${Info} 已为您生成新的随机强密码。"
+        else
+            new_psk="${current_psk}"
+        fi
+    else
+        new_psk="${new_psk_input}"
     fi
-    
+
     read -p "是否开启 IPv6 支持? [当前: ${current_ipv6}] (y/N): " new_ipv6_enable
     if [[ "$new_ipv6_enable" =~ ^[yY]$ ]]; then
         new_ipv6="true"
@@ -234,7 +241,7 @@ EOF
     sleep 1 # 等待一秒确保服务状态更新
 
     if systemctl is-active --quiet snell; then
-        echo -e "\n${Green_background_prefix} Snell 服务重启成功，新配置已生效! ${Font_color_suffix}\n"
+        echo -e "\n${Green_font_prefix}Snell 服务重启成功，新配置已生效!${Font_color_suffix}\n"
         view_config_info
     else
         echo -e "${Error} Snell 服务重启失败！请使用 'systemctl status snell' 命令检查错误日志。"
@@ -246,7 +253,7 @@ EOF
 main_menu(){
     clear
     echo "================================================"
-    echo "        Snell Server 一键管理脚本               "
+    echo "        Snell Server 一键管理脚本 (v4.2)"
     echo "================================================"
     echo ""
     echo "  1. 安装 Snell Server"
