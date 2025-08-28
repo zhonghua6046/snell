@@ -246,7 +246,7 @@ EOF
 main_menu(){
     clear
     echo "================================================"
-    echo "        Snell Server 一键管理脚本 (v4.0)"
+    echo "        Snell Server 一键管理脚本               "
     echo "================================================"
     echo ""
     echo "  1. 安装 Snell Server"
