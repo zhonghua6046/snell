@@ -206,19 +206,12 @@ modify_config(){
         new_port="${new_port_input}"
     fi
     
-    read -p "请输入新的PSK [当前: ${current_psk}] (直接回车保留, 留空输入则重新生成强密码): " new_psk_input
-    if [ -z "${new_psk_input}" ]; then
-        read -p "您希望保留当前PSK还是生成新PSK? [1.保留(默认) 2.生成新的]: " psk_choice
-        if [[ "$psk_choice" == "2" ]]; then
-            new_psk=$(generate_strong_psk)
-            echo -e "${Info} 已为您生成新的随机强密码。"
-        else
-            new_psk="${current_psk}"
-        fi
-    else
-        new_psk="${new_psk_input}"
+    read -p "请输入新的PSK [留空则重新生成强密码]: " new_psk
+    if [ -z "${new_psk}" ]; then
+        new_psk=$(generate_strong_psk)
+        echo -e "${Info} 已为您生成新的随机强密码。"
     fi
-
+    
     read -p "是否开启 IPv6 支持? [当前: ${current_ipv6}] (y/N): " new_ipv6_enable
     if [[ "$new_ipv6_enable" =~ ^[yY]$ ]]; then
         new_ipv6="true"
