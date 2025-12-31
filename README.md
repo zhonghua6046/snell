@@ -7,12 +7,12 @@
 
 授予执行权限：
 ```
-chmod +x manage_snell.sh
+chmod +x snell.sh
 ```
 运行脚本：
 以 root 用户或使用 sudo 运行此脚本
 ```
-bash manage_snell.sh
+bash snell.sh
 # 或者如果你已经授予了执行权限
-# ./manage_snell.sh
+# ./snell.sh
 ```
