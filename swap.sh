@@ -39,43 +39,50 @@ add_swap() {
         error_exit "磁盘空间不足，可用空间：${free_space}MB，需求：${size}MB"
     fi
 
-    # 如果 Swap 已存在，则扩展 Swap
+    # 如果 Swap 已存在，先关闭它
     if swap_exists; then
         current_size=$(free -m | awk '/Swap:/ {print $2}')
         if [ "$size" -le "$current_size" ]; then
             echo -e "${YELLOW}当前 Swap 已为 ${current_size}MB，无需扩展${NC}"
             return
         fi
-
         echo -e "${YELLOW}正在扩展 Swap，从 ${current_size}MB 扩展到 ${size}MB${NC}"
-        swapoff "$SWAPFILE"
-        dd if=/dev/zero of="$SWAPFILE" bs=1M count="$size" status=progress
-        chmod 600 "$SWAPFILE"
-        mkswap "$SWAPFILE"
-        swapon "$SWAPFILE"
-
-        echo -e "${GREEN}Swap 已成功扩展至 ${size}MB${NC}"
+        swapoff "$SWAPFILE" || error_exit "无法关闭当前 Swap，操作中止"
     else
         echo -e "${GREEN}正在创建 ${size}MB Swap 文件...${NC}"
-        if command -v fallocate &>/dev/null; then
-            fallocate -l "${size}M" "$SWAPFILE" || { echo "fallocate 失败，回退到 dd"; dd if=/dev/zero of="$SWAPFILE" bs=1M count="$size" status=progress; }
-        else
-            dd if=/dev/zero of="$SWAPFILE" bs=1M count="$size" status=progress
-        fi
-
-        chmod 600 "$SWAPFILE"
-        mkswap "$SWAPFILE"
-        swapon "$SWAPFILE"
-
-        # 持久化 Swap
-        if ! grep -q "^$SWAPFILE" /etc/fstab; then
-            echo "$SWAPFILE none swap sw 0 0" >> /etc/fstab
-            echo -e "${GREEN}Swap 持久化成功！${NC} 已自动添加到 /etc/fstab"
-        fi
-
-        echo -e "${GREEN}Swap 已成功增加至 ${size}MB${NC}"
     fi
 
+    # --- 核心修改部分开始 ---
+    # 删除旧文件（如果存在），确保重新创建干净的文件
+    [ -f "$SWAPFILE" ] && rm -f "$SWAPFILE"
+
+    # 针对 Btrfs 文件系统的特殊处理（可选，防止在 Btrfs 上失败）
+    # 如果不是 Btrfs，这几行也不会造成伤害
+    touch "$SWAPFILE"
+    if command -v chattr &>/dev/null; then
+        chattr +C "$SWAPFILE" 2>/dev/null
+    fi
+
+    # 强制使用 dd 填充，确保无空洞
+    echo -e "${YELLOW}正在使用 dd 分配磁盘空间（这可能需要一点时间）...${NC}"
+    dd if=/dev/zero of="$SWAPFILE" bs=1M count="$size" status=progress || error_exit "dd 创建文件失败"
+    # --- 核心修改部分结束 ---
+
+    chmod 600 "$SWAPFILE"
+    
+    echo -e "${YELLOW}正在格式化 Swap...${NC}"
+    mkswap "$SWAPFILE" || error_exit "mkswap 格式化失败"
+    
+    echo -e "${YELLOW}正在激活 Swap...${NC}"
+    swapon "$SWAPFILE" || error_exit "swapon 激活失败！可能是文件系统不支持或文件包含空洞。"
+
+    # 持久化 Swap
+    if ! grep -q "^$SWAPFILE" /etc/fstab; then
+        echo "$SWAPFILE none swap sw 0 0" >> /etc/fstab
+        echo -e "${GREEN}Swap 持久化成功！${NC} 已自动添加到 /etc/fstab"
+    fi
+
+    echo -e "${GREEN}Swap 已成功设置为 ${size}MB${NC}"
     show_status
 }
 
@@ -112,7 +119,7 @@ show_status() {
 # 交互式菜单
 main_menu() {
     while true; do
-        echo -e "\n${GREEN}===== Swap 管理菜单 =====${NC}"
+        echo -e "\n${GREEN}===== Swap 管理菜单 (Debian 13 修正版) =====${NC}"
         echo -e "1) 添加或扩展 Swap"
         echo -e "2) 删除 Swap"
         echo -e "3) 查看 Swap 状态"
